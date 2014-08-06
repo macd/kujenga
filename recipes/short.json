@@ -1,0 +1,18 @@
+{
+"name": "short",
+"description": "Short example for testing.",
+"user": "ubuntu",
+"region": "us-west-2",
+"instance_type": "m3.medium",
+"base_image": {
+    "doc-string": "These are the U14.04 amd64 ebs images as of 3-Aug-2014",
+    "us-west-2": "ami-9986fea9"
+},
+"uploads": {
+    "doc-string": "Everthing in the source dir will be uploaded to uploads directory",
+    "source": "/home/ubuntu/source",
+    "target": "/home/ubuntu/target"
+},
+"commands": [ "apt-get update",
+              "apt-get upgrade -y"]
+}
