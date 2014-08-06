@@ -20,6 +20,6 @@ setup(name             = 'kujenga',
                      'Intended Audience :: System Administrators',
                      'License :: OSI Approved :: MIT License',
                      'Operating System :: OS Independent',
-                     'Topic :: Software Development :: System Adminstration',
+                     'Topic :: Software Development',
       ],
 )
