@@ -1,7 +1,8 @@
-#!/usr/bin/python
-import boto
-import boto.ec2 as ec2
-from fabric.api import env, put, sudo
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""Kujenga: simple EC2 image creation from json recipies"""
+
 import functools
 from glob import glob
 import json
@@ -10,28 +11,32 @@ import os.path
 import random
 import signal
 import string
+import sys
 import time
+import boto3
+import fabric
 
-DEBUG = True
-
+VERBOSE = True
 
 def printdb(msg):
-    if DEBUG:
-        print msg
+    """Print if VERBOSE is True"""
+    if VERBOSE:
+        print(msg)
 
 
 class BadConfigFile(Exception):
-    pass
+    """Raise a stink when the config file is not correct"""
 
 
-class TimeoutError(Exception):
-    pass
+class KujengaTimeoutError(Exception):
+    """Raise a stink when taking too long"""
 
 
 def timeout(seconds, error_message='Function call timed out'):
+    """A decorator for timeout (go sit on the steps!)"""
     def decorated(func):
         def _handle_timeout(signum, frame):
-            raise TimeoutError(error_message)
+            raise KujengaTimeoutError(error_message)
 
         def wrapper(*args, **kwargs):
             signal.signal(signal.SIGALRM, _handle_timeout)
@@ -47,12 +52,14 @@ def timeout(seconds, error_message='Function call timed out'):
 
 
 def random_name(prefix, length):
+    """Generate a random name with a fixed prefix"""
     name = prefix + "".join(random.choice(string.ascii_letters)
                             for i in range(length))
     return name
 
 
 def check_configs(config):
+    """Check the json config file for required fields"""
     rq_keys = ["name", "description", "region", "user", "instance_type",
                "base_image", "uploads", "commands"]
     error = False
@@ -64,121 +71,148 @@ def check_configs(config):
         raise BadConfigFile
 
 
-#
-# We only use this in wait_for_running and in the initial
-# commands.  After the start up period we use just the bare
-# fabric sudo.  If that fails, then we want to know about it
-#
-@timeout(600, "'robust_sudo' (ha!) timed out")
-def robust_sudo(cmd):
-    while True:
-        try:
-            sudo(cmd)
-            break
-        except:
-            time.sleep(10)
-
-
-class Credentials(object):
-    def __init__(self):
-        # garbage coming through as last character ?
-        # If your credentials don't work, try removing the
-        # "[:-1]" from the following two lines.
-        self.id = os.environ["AWS_ACCESS_KEY_ID"][:-1]
-        self.key = os.environ["AWS_SECRET_ACCESS_KEY"][:-1]
-        self.creds = {"aws_access_key_id": self.id,
-                      "aws_secret_access_key": self.key}
-
-
-class BuildContext(object):
+class BuildContext:
+    """Context for interacting with EC2"""
     def __init__(self, config_params):
-        self.creds = Credentials()
         self.name = config_params["name"]
         self.desc = config_params["description"]
-        self.region = config_params["region"]
         self.instance_type = config_params["instance_type"]
+        self.region = config_params["region"]
         self.ami = config_params["base_image"][self.region]
-        self.conn = ec2.connect_to_region(self.region, **(self.creds.creds))
-        self.key_file_name = self.make_new_key()
-        self.sec_group_name = self.make_new_grp()
+        self.ec2 = boto3.client("ec2") # creds and region in .aws
+        self.keyname = None
+        self.key_filename = None
+        self.group_name = None
+        self.group_id = None
+        self.reservation = None
+        self.ip_addr = None
+        self.instance_id = None
+        self.instance_state = None
+        self.image_id = None
+        self.make_new_key()
+        self.make_new_grp()
         printdb("build context created")
 
     def make_new_key(self):
-        key_file_name = random_name("tmp_key_", 10)
-        key = self.conn.create_key_pair(key_file_name)
-        key.save(".")
-        printdb("New key {} created".format(key_file_name))
-        return key_file_name
+        """Make a new temporary key to use on the running instance"""
+        self.keyname = random_name("tmp_key_", 10)
+        self.key_filename = os.path.abspath(self.keyname + ".pem")
+        key = self.ec2.create_key_pair(KeyName=self.keyname)
+        with open(self.key_filename, "w") as keyfile:
+            keyfile.write(key["KeyMaterial"])
+
+        os.chmod(self.key_filename, 256)  # note that 256 is octal 400
+        printdb("New key {} created".format(self.key_filename))
+
 
     def make_new_grp(self):
-        grp_name = random_name("tmp_grp_", 10)
-        grp = self.conn.create_security_group(
-            grp_name,
-            "Temporary group for image builds"
+        """Make a new temporary security group and set access for ssh"""
+        resp = self.ec2.describe_account_attributes(AttributeNames=["default-vpc"])
+        vpc_id = resp["AccountAttributes"][0]["AttributeValues"][0]["AttributeValue"]
+        if vpc_id == "none":
+            raise Exception
+
+        self.group_name = random_name("tmp_grp_", 10)
+        grp = self.ec2.create_security_group(
+            GroupName=self.group_name,
+            Description="Temporary group for image builds",
+            VpcId=vpc_id
         )
+        self.group_id = grp["GroupId"]
+        printdb("Security group {} created".format(self.group_id))
         # Now allow ssh access
         try:
-            grp.authorize("tcp", 22, 22, "0.0.0.0/0")
-        except:
-            print("Hmmmm, this seems to sometimes throw an exception?")
+            self.ec2.authorize_security_group_ingress(
+                GroupId=self.group_id,
+                IpPermissions=[
+                    {
+                        'FromPort': 22,
+                        'IpProtocol': 'tcp',
+                        'IpRanges': [
+                            {
+                                'CidrIp': "0.0.0.0/0",
+                                'Description': 'all ranges'
+                            },
+                        ],
+                        'ToPort': 22,
+                    },
+                ]
+            )
+        except Exception as _e:
+            printdb(_e)
 
         # Save the grp object too for debug access
-        self.sec_grp = grp
-        printdb("new security group {} created".format(grp_name))
-        return grp_name
+        printdb("new security group {} created".format(self.group_name))
 
     def spinup(self):
-        self.reservation = self.conn.run_instances(
-            self.ami,
-            key_name=self.key_file_name,
-            instance_type=self.instance_type,
-            security_groups=[self.sec_group_name]
+        """Spin up a new instance using ami from config json"""
+        self.reservation = self.ec2.run_instances(
+            ImageId=self.ami,
+            KeyName=self.keyname,
+            InstanceType=self.instance_type,
+            SecurityGroupIds=[self.group_id],
+            MaxCount=1,
+            MinCount=1,
+            Monitoring={"Enabled": False}
         )
-        printdb("Instance {} launched".format(self.reservation.instances))
-        # We are not launching more than one, so grab the first
-        self.instance_obj = self.reservation.instances[0]
+        self.instance_id = self.reservation["Instances"][0]["InstanceId"]
+        printdb("Instance {} launched".format(self.instance_id))
+
+    def _update_instance_state(self):
+        inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
+        self.instance_state = inst_info["Reservations"][0]["Instances"][0]["State"]["Name"]
 
     def _is_in_state(self, state):
-        self.instance_obj.update()
-        printdb("Instance state is {}".format(self.instance_obj.state))
-        if self.instance_obj.state == state:
+        self._update_instance_state()
+        printdb("Instance state is {}".format(self.instance_state))
+        if self.instance_state == state:
             return True
-        else:
-            return False
+
+        return False
 
     @timeout(300, 'Waiting for instance to enter state timed out')
     def _wait_for_state(self, state):
         while True:
             if self._is_in_state(state):
                 # ip address is now available
-                self.ip_addr = self.instance_obj.ip_address
+                inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
+                self.ip_addr = inst_info["Reservations"][0]["Instances"][0]["PublicIpAddress"]
                 printdb("Instance IP: {}".format(self.ip_addr))
                 break
-            printdb("Waiting for {} at time {}".format(state, time.ctime()))
+            printdb("Waiting for {} at time {}, currently in {}".format(
+                state, time.ctime(), self.instance_state))
+
             time.sleep(15)
 
     def wait_for_running(self):
+        """Wait until instance is in the 'running' state before advancing"""
         self._wait_for_state("running")
 
     def wait_for_terminated(self):
+        """Wait until instance is in the 'terminated' state before advancing"""
         self._wait_for_state("terminated")
 
     def create_image(self):
-        self.image_id = self.instance_obj.create_image(
-            name=self.name,
-            description=self.desc
+        """Create a EC2 image from a running instance"""
+        response = self.ec2.create_image(
+            Name=self.name,
+            Description=self.desc,
+            InstanceId=self.instance_id
         )
-        self.image = self.conn.get_image(self.image_id)
+        self.image_id = response["ImageId"]
 
     def is_image_complete(self):
-        self.image.update()
-        if self.image.state == "available":
-            return True
-        else:
-            return False
+        """Test for completeness"""
+        response = self.ec2.describe_images(
+            ImageIds=[self.image_id]
+        )
+        state = response["Images"][0]["State"]
+        printdb("Image state: {}".format(state))
+        return state == "available"
 
     @timeout(1800, 'Wating for image completion timed out')
     def wait_for_image(self):
+        """Have to wait for image to complete before cleaning up"""
         while True:
             if self.is_image_complete():
                 break
@@ -187,51 +221,72 @@ class BuildContext(object):
             time.sleep(15)
 
     def teardown(self):
-        self.conn.terminate_instances(
-            [self.instance_obj.id]
+        """Cleanliness is next to..."""
+        self.ec2.terminate_instances(
+            InstanceIds=[self.instance_id]
         )
         self.wait_for_terminated()
-        self.conn.delete_key_pair(self.key_file_name)
-        self.conn.delete_security_group(self.sec_group_name)
-        os.remove(self.key_file_name + ".pem")
+        self.ec2.delete_key_pair(KeyName=self.keyname)
+        self.ec2.delete_security_group(GroupID=self.group_id)
+        os.remove(self.key_filename)
         printdb("BuildContext teardown complete")
 
 
-class ConfigInstance(object):
-    def __init__(self, config_params, ip_addr, key_file_name):
+class ConfigInstance:
+    """Do the stuff to configure the instance before creating image"""
+    def __init__(self, config_params, ip_addr, key_filename):
         self.user = config_params["user"]
         self.target_dir = config_params["uploads"]["target"]
-        env["host_string"] = "{}@{}:22".format(self.user, ip_addr)
-        env["key_filename"] = "./{}.pem".format(key_file_name)
-        self.key_file_name = key_file_name
-        self.ip_addr = ip_addr
+        self.conn = fabric.connection.Connection(
+            host=ip_addr,
+            user=self.user,
+            connect_kwargs={"key_filename": key_filename}
+        )
+
         self.upload_files(config_params["uploads"])
         self.do_commands(config_params["commands"])
 
+    #
+    # We only use this in wait_for_running and in the initial
+    # commands.  After the start up period we use just the bare
+    # fabric sudo.  If that fails, then we want to know about it
+    #
+    @timeout(600, "'robust_sudo' (ha!) timed out")
+    def robust_sudo(self, cmd):
+        """Wait for sudo command on remote host up to 10 minutes before throwing in the towel"""
+        while True:
+            try:
+                self.conn.sudo(cmd)
+                break
+            except:
+                time.sleep(10)
+
     def upload_files(self, uploads):
+        """Upload all the files in the directory specified in the json recipe"""
         src = uploads["source"]
         if not src:
             src = os.path.abspath(".")
 
         file_list = glob("{}/*".format(src))
-        robust_sudo("mkdir -p {}".format(self.target_dir))
-        robust_sudo("chown {}:{} {}".format(self.user, self.user,
-                                            self.target_dir))
+        self.robust_sudo("mkdir -p {}".format(self.target_dir))
+        self.robust_sudo("chown {}:{} {}".format(self.user, self.user,
+                                                 self.target_dir))
         if file_list:
             for fl in file_list:
-                put(fl, self.target_dir)
+                self.conn.put(fl, self.target_dir)
         else:
             printdb("Info: no files to upload to instance")
 
     def do_commands(self, commands):
+        """Now perform all the commands from the json recipe"""
         for cmd in commands:
-            sudo(cmd)
+            self.conn.sudo(cmd)
 
 
-def main(config_file):
+def create_image(config_file):
     """
     main method of kujenga. Takes single filename argument of the json
-    formatted build recipe.  See recipes in recipe directory
+    formatted build recipe.  See recipes in recipe directory for examples
     """
     with open(config_file, "r") as fd:
         config_dict = json.load(fd)
@@ -240,7 +295,11 @@ def main(config_file):
     bldx = BuildContext(config_dict)
     bldx.spinup()
     bldx.wait_for_running()
-    inst = ConfigInstance(config_dict, bldx.ip_addr, bldx.key_file_name)
+    printdb("Configuring instance...")
+    cfg = ConfigInstance(config_dict, bldx.ip_addr, bldx.key_filename)
     bldx.create_image()
     bldx.wait_for_image()
     bldx.teardown()
+
+    # we return these for debugging only
+    return bldx, cfg

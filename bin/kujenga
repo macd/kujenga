@@ -8,5 +8,4 @@ if __name__ == "__main__":
         print("Usage: kujenga <spec_file.json>")
         sys.exit(1)
     config_file = sys.argv[1]
-    kujenga.main(config_file)
-
+    sys.exit(kujenga.create_image(config_file))

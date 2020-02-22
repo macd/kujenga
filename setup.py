@@ -2,15 +2,15 @@ from distutils.core import setup
 
 
 setup(name             = 'kujenga',
-      version          = '0.1.0',
+      version          = '0.2.0',
       packages         = ["kujenga"],
-      install_requires = ['boto', 'fabric'],
+      install_requires = ['boto3', 'fabric'],
       author           = 'Don MacMillen',
       author_email     = 'don@macmillen.net',
       url              = 'https://github.com/macd/kujenga',
       description      = "Ultra-lightweight EC2 ami builds from json recipes",
       license          = 'MIT',
-      keywords         = 'Amazon EC2, Boto, Fabric',
+      keywords         = 'Amazon EC2, Boto3, Fabric',
       scripts          = ["bin/kujenga"],
       zip_safe         = True,
       classifiers=[

@@ -1,1 +1,1 @@
-from kujenga import main
+from kujenga create_image main

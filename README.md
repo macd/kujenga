@@ -1,34 +1,37 @@
 
 # Kujenga
 
-Kujenga is a lightweight way to build EC2 images using Python, boto and fabric.
+Kujenga is a lightweight way to build EC2 images using Python, Boto3
+and Fabric 2.
 
-Kujenga uses simple JSON based scripts as recipies to build images
-in Amazon EC2.  It does this by spinning up a base instance, uploading
+Kujenga uses simple JSON based scripts as recipies to build images in
+Amazon EC2.  It does this by spinning up a base instance, uploading
 any local files, and then executing a set of commands to configure the
-instance.  Finally it snapshots the image.
+instance.  Then it snapshots the instance to create the image. 
 
 During the process it generates temporary keys and temporary security
-groups that are used to connect to the running image using Fabric.
+groups that are used to connect to the running instance using Fabric.
 After the image has been created, the instance is terminated and
 the temporary keys and security groups are deleted.
 
-Kujenga is different from other EC2 script based solutions in that it attempts
-to deal with the unpredictable delays and eventual consistancy issues of
-EC2 rather than leaving that as an exercise for the user.  It is meant to
-be used in an automated stack.
+Kujenga attempts to deal with the unpredictable delays and eventual 
+consistancy issues of EC2.  It can be used in an automated stack or 
+as a command line tool.
+
+Finally note that Kujenga may not work with EC2 classic as it depends
+on having a default VPC within which to create the temporary security
+group.
 
 ## Prerequisites
 Kujenga requires
-  - Boto
-  - Fabric
+  - Python 3 (tested on Python 3.7)
+  - Boto3    (tested on 1.11.14)
+  - Fabric   (tested on 2.5.0)
 
-Because of the boto dependency, Kujenga does not work with Python 3.
-Using Amazon EC2 requires having an account there and setting the 
-following environment variables
+Using Amazon EC2 requires having an account there. Kujenga now leverages
+boto3's features to read your 'AWS_ACCESS_KEY_ID' and 'AWS_SECRET_ACCESS_KEY'
+from ~/.aws/credentials and region spec from ~/.aws/config
 
-    export AWS_ACCESS_KEY_ID=<your aws access key>
-    export AWS_SECRET_ACCESS_KEY=<your aws secret access key>
 
 ## Installation
 TODO:
@@ -61,19 +64,25 @@ An example of a minimal Kujenga recipe is the following:
                       "python /home/ubuntu/target/get_pip.py"]
     }
 
-The **name** and **description** values will be used to annotate the image
-in EC2.  Kujenga will use the EC2 region specified by the **region**
-value to create the image.  The **user** value is used to ssh into the
-running instance in order to configure it.  It must be part of the
-sudo'ers group.  
+The **name** and **description** values will be used to annotate the
+image in EC2.  Kujenga will use the EC2 region specified in the
+~/.aws/config file for the region to create the image.  The region in
+the json recipe is used to select the correct base image type.  The
+**user** value is used to ssh into the running instance in order to
+configure it.  It must be part of the sudo'ers group. For Ubuntu
+images, this is the user 'ubuntu'.
 
-The **instance_type** value will be used as the machine
-type for the instance.  Note that it must be compatible with the ami
-that is specified in the **base_image** dictionary. The **uploads** 
-dictionary gives directions on files to upload.  Everything in the source 
-directory (full path) will be uploaded to the target directory (full path).  
-These files can then be referred to in the commands section for installation 
-of custom software etc.
+The **instance_type** value will be used as the machine type for the
+instance.  Note that it must be compatible with the ami that is
+specified in the **base_image** dictionary. If you specify an instance
+type that is not available in the specified region, you will get an
+incrutable error message from EC2 complaining about an unsupported
+configuration.
+
+The **uploads** dictionary gives directions on files to upload.
+Everything in the source directory (full path) will be uploaded to the
+target directory (full path). These files can then be referred to in
+the commands section for installation of custom software etc.
 
 Every entry in the **commands** section will be executed verbatim by
 the sudo command.
