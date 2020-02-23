@@ -11,9 +11,9 @@ import os.path
 import random
 import signal
 import string
-import sys
 import time
 import boto3
+from botocore.exceptions import ClientError
 import fabric
 
 VERBOSE = True
@@ -61,7 +61,7 @@ def random_name(prefix, length):
 def check_configs(config):
     """Check the json config file for required fields"""
     rq_keys = ["name", "description", "region", "user", "instance_type",
-               "base_image", "uploads", "commands"]
+               "base_image", "volume_size", "uploads", "commands"]
     error = False
     for key in rq_keys:
         if key not in config:
@@ -77,6 +77,7 @@ class BuildContext:
         self.name = config_params["name"]
         self.desc = config_params["description"]
         self.instance_type = config_params["instance_type"]
+        self.volume_size = config_params["volume_size"]
         self.region = config_params["region"]
         self.ami = config_params["base_image"][self.region]
         self.ec2 = boto3.client("ec2") # creds and region in .aws
@@ -147,6 +148,15 @@ class BuildContext:
     def spinup(self):
         """Spin up a new instance using ami from config json"""
         self.reservation = self.ec2.run_instances(
+            BlockDeviceMappings=[
+                {
+                    "DeviceName": "/dev/sda1",
+                    "Ebs": {
+                        "VolumeSize": self.volume_size,
+                        "VolumeType": "standard"
+                    }
+                },
+            ],
             ImageId=self.ami,
             KeyName=self.keyname,
             InstanceType=self.instance_type,
@@ -158,26 +168,26 @@ class BuildContext:
         self.instance_id = self.reservation["Instances"][0]["InstanceId"]
         printdb("Instance {} launched".format(self.instance_id))
 
+    # OK, so this can fail even if we have just been given an good instance_id
+    # so we catch that and set the state to "unknown"... eventually the EC2 database(s)
+    # will be consistent (we hope)
     def _update_instance_state(self):
-        inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
-        self.instance_state = inst_info["Reservations"][0]["Instances"][0]["State"]["Name"]
+        try:
+            inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
+            self.instance_state = inst_info["Reservations"][0]["Instances"][0]["State"]["Name"]
+        except ClientError:
+            printdb("Didn't find instance {}".format(self.instance_id))
+            self.instance_state = "unknown"
 
     def _is_in_state(self, state):
         self._update_instance_state()
         printdb("Instance state is {}".format(self.instance_state))
-        if self.instance_state == state:
-            return True
-
-        return False
+        return self.instance_state == state
 
     @timeout(300, 'Waiting for instance to enter state timed out')
     def _wait_for_state(self, state):
         while True:
             if self._is_in_state(state):
-                # ip address is now available
-                inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
-                self.ip_addr = inst_info["Reservations"][0]["Instances"][0]["PublicIpAddress"]
-                printdb("Instance IP: {}".format(self.ip_addr))
                 break
             printdb("Waiting for {} at time {}, currently in {}".format(
                 state, time.ctime(), self.instance_state))
@@ -187,6 +197,10 @@ class BuildContext:
     def wait_for_running(self):
         """Wait until instance is in the 'running' state before advancing"""
         self._wait_for_state("running")
+        # ip address is now available
+        inst_info = self.ec2.describe_instances(InstanceIds=[self.instance_id])
+        self.ip_addr = inst_info["Reservations"][0]["Instances"][0]["PublicIpAddress"]
+        printdb("Instance IP: {}".format(self.ip_addr))
 
     def wait_for_terminated(self):
         """Wait until instance is in the 'terminated' state before advancing"""
@@ -227,7 +241,7 @@ class BuildContext:
         )
         self.wait_for_terminated()
         self.ec2.delete_key_pair(KeyName=self.keyname)
-        self.ec2.delete_security_group(GroupID=self.group_id)
+        self.ec2.delete_security_group(GroupId=self.group_id)
         os.remove(self.key_filename)
         printdb("BuildContext teardown complete")
 
@@ -277,11 +291,17 @@ class ConfigInstance:
         else:
             printdb("Info: no files to upload to instance")
 
+    # We catch a failed command here to try to do as much as we can in
+    # one go (better for debugging the json recipe)
+    # note use sudo in the command, if needed
     def do_commands(self, commands):
         """Now perform all the commands from the json recipe"""
         for cmd in commands:
-            self.conn.sudo(cmd)
-
+            try:
+                self.conn.run(cmd)
+            except Exception as _e:
+                printdb(_e)
+                printdb("command '{}' failed. Skipping".format(cmd))
 
 def create_image(config_file):
     """

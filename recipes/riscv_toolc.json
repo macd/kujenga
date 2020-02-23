@@ -1,28 +1,51 @@
 {
-"name": "qemu",
-"description": "",
+    "name": "riscv",
+    "description": "riscv toolchain",
+    
+    "region": "us-east-2",
 
-"region": "us-west-2",
+    "user": "ubuntu",
+    "instance_type": "c4.xlarge",
 
-"user": "ubuntu",
-"instance_type": "m3.medium",
+    "base_image": {
+        "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
+        "us-east-2": "ami-0367b500fdcac0edc",
+        "us-west-2": "ami-0d1cd67c26f5fca19"
+    },
 
-"base_image": {
-    "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
-    "us-west-2": "ami-0d1cd67c26f5fca19"
-},
+    "volume_size": 40,
+    
+    "uploads": {
+        "doc-string": "Everthing in the source dir will be uploaded to target_directory",
+        "source": "/home/macd/source",
+        "target": "/home/ubuntu/target"
+    },
 
-"uploads": {
-    "doc-string": "Everthing in the source dir will be uploaded to target_directory",
-    "source": "/home/ubuntu/source",
-    "target": "/home/ubuntu/target"
-},
-
-"commands": [ "apt-get update",
-              "apt-get upgrade -y",
-              "apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev -y"
-              "git clone --recursive https://github.com/riscv/riscv-gnu-toolchain",
-              "cd riscv-gnu-toolchain; ./configure --prefix=/opt/riscv --enable-multilib",
-              "mkdir /opt/riscv",
-              "export PATH=/opt/riscv/bin:$PATH ; cd riscv-gnu-toolchain; make linux"]
+    "commands": [
+        "sudo apt-get update",
+        "sudo apt-get upgrade -y",
+        "sudo apt-get update",
+        "sudo apt-get install autoconf -y",
+        "sudo apt-get install automake -y",
+        "sudo apt-get install autotools-dev -y",
+        "sudo apt-get install curl -y",
+        "sudo apt-get install python3 -y",
+        "sudo apt-get install libmpc-dev -y",
+        "sudo apt-get install libmpfr-dev -y",
+        "sudo apt-get install libgmp-dev -y",
+        "sudo apt-get install gawk -y",
+        "sudo apt-get install build-essential -y",
+        "sudo apt-get install bison -y",
+        "sudo apt-get install flex -y",
+        "sudo apt-get install texinfo -y",
+        "sudo apt-get install gperf -y",
+        "sudo apt-get install libtool -y",
+        "sudo apt-get install patchutils -y",
+        "sudo apt-get install bc -y",
+        "sudo apt-get install zlib1g-dev -y",
+        "sudo apt-get install libexpat-dev -y",
+        "git clone --recursive https://github.com/riscv/riscv-gnu-toolchain",
+        "cd riscv-gnu-toolchain; ./configure --prefix=/opt/riscv --enable-multilib",
+        "sudo mkdir /opt/riscv",
+        "export PATH=/opt/riscv/bin:$PATH ; cd riscv-gnu-toolchain; sudo make linux -j4"]
 }

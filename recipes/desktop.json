@@ -1,39 +1,37 @@
 {
-"name": "dbm-desktop",
-"description": "Desktop image in cloud for use with remote desktop",
+    "name": "dbm-desktop",
+    "description": "Desktop image in cloud for use with remote desktop",
 
-"region": "us-west-2",
+    "region": "us-east-2",
 
-"user": "ubuntu",
-"instance_type": "m3.medium",
+    "user": "ubuntu",
+    
+    "instance_type": "c4.xlarge",
 
-"base_image": {
-    "doc-string": "These are the U14.04 amd64 ebs images as of 3-Aug-2014",
-    "cn-north-1": "ami-64a5375d",
-    "ap-northeast-1": "ami-f58ed3f4",
-    "eu-west-1": "ami-096cbd7e",
-    "ap-southeast-1": "ami-d8560e8a",
-    "ap-southeast-2": "ami-8d3751b7",
-    "us-west-2": "ami-9986fea9",
-    "us-west-1": "ami-79b4b73c",
-    "us-east-1": "ami-a427efcc",
-    "sa-east-1": "ami-fb8b22e6"
-},
+    "base_image": {
+        "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
+        "us-east-2": "ami-0367b500fdcac0edc",
+        "us-west-2": "ami-0d1cd67c26f5fca19"
+    },
 
-"uploads": {
-    "doc-string": "Everthing in the source dir will be uploaded to target_directory",
-    "source": "/home/ubuntu/source",
-    "target": "/home/ubuntu/target"
-},
+    "volume_size": 40,
+    
+    "uploads": {
+        "doc-string": "Everthing in the source dir will be uploaded to target_directory",
+        "source": "/home/macd/source",
+        "target": "/home/ubuntu/target"
+    },
 
-"commands": [ "apt-get update",
-              "apt-get upgrade -y",
-              "apt-get install emacs -y",
-              "apt-get install git -y",
-              "apt-get install build-essential -y",
-              "apt-get install python-dev -y",
-              "apt-get install gfortran -y",
-              "python target/get_pip.py",
-              "pip install pandas",
-              "apt-get install unity -y"]
+    "commands": [
+        "sudo apt-get update",
+        "sudo apt-get upgrade -y",
+        "sudo apt-get install emacs -y",
+        "sudo apt-get install git -y",
+        "sudo apt-get install build-essential -y",
+        "sudo apt-get install python-dev -y",
+        "sudo apt-get install gfortran -y",
+        "sudo apt-get install ubuntu-gnome-desktop -y",
+        "git clone https://github.com/JuliaLang/julia",
+        "cd julia; make -j4"
+    ]
 }

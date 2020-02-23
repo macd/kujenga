@@ -1,37 +1,43 @@
 {
-"name": "qemu",
-"description": "",
+    "name": "qemu",
+    "description": "",
 
-"region": "us-east-2",
+    "region": "us-east-2",
 
-"user": "ubuntu",
-"instance_type": "c4.xlarge",
+    "user": "ubuntu",
+    "instance_type": "c4.xlarge",
 
-"base_image": {
-    "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
-    "us-east-2": "ami-0367b500fdcac0edc",
-    "us-west-2": "ami-0d1cd67c26f5fca19"
-},
+    "base_image": {
+        "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
+        "us-east-2": "ami-0367b500fdcac0edc",
+        "us-west-2": "ami-0d1cd67c26f5fca19"
+    },
 
-"uploads": {
-    "doc-string": "Everthing in the source dir will be uploaded to target_directory",
-    "source": "/home/macd/source",
-    "target": "/home/ubuntu/target"
-},
+    "volume_size": 20,
+    
+    "uploads": {
+        "doc-string": "Everthing in the source dir will be uploaded to target_directory",
+        "source": "/home/macd/source",
+        "target": "/home/ubuntu/target"
+    },
 
-"commands": [ "apt-get update",
-              "apt-get upgrade -y",
-              "apt-get install emacs -y",
-              "apt-get install git -y",
-              "apt-get install build-essential -y",
-              "apt-get install pkg-config -y",
-              "apt-get install glib2.0 -y",
-              "apt-get install libpixman-1.dev -y",
-              "apt-get install bison -y",
-              "apt-get install flex -y",
-              "wget https://download.qemu.org/qemu-4.2.0.tar.xz",
-              "tar xvf qemu-4.2.0.tar.xz",
-              "cd qemu-4.2.0; ./configure --target-list='riscv32-softmmu,riscv32-linux-user,riscv64-softmmu,riscv64-linux-user'",
-              "cd qemu-4.2.0; make",
-              "cd qemu-4.2.0; make install"]
+    "commands": [
+        "sudo apt-get update",
+        "sudo apt-get upgrade -y",
+        "sudo apt-get install emacs -y",
+        "sudo apt-get install git -y",
+        "sudo apt-get install build-essential -y",
+        "sudo apt-get install pkg-config -y",
+        "sudo apt-get install glib2.0 -y",
+        "sudo apt-get install libpixman-1.dev -y",
+        "sudo apt-get install bison -y",
+        "sudo apt-get install flex -y",
+        "wget https://download.qemu.org/qemu-4.2.0.tar.xz",
+        "tar xf qemu-4.2.0.tar.xz",
+        "cd qemu-4.2.0; ./configure --target-list='riscv32-softmmu,riscv32-linux-user,riscv64-softmmu,riscv64-linux-user'",
+        "cd qemu-4.2.0; make -j4",
+        "cd qemu-4.2.0; sudo make install",
+        "git clone https://github.com/michaeljclark/busybear-linux.git",
+        "cd busybear-linux; make -j8",
+    ]
 }

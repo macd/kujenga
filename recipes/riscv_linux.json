@@ -1,0 +1,82 @@
+{
+    "name": "riscv",
+    "description": "riscv toolchain",
+    
+    "region": "us-east-2",
+
+    "user": "ubuntu",
+    "instance_type": "c4.xlarge",
+
+    "base_image": {
+        "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
+        "us-east-2": "ami-0367b500fdcac0edc",
+        "us-west-2": "ami-0d1cd67c26f5fca19"
+    },
+
+    "volume_size": 40,
+    
+    "uploads": {
+        "doc-string": "Everthing in the source dir will be uploaded to target_directory",
+        "source": "/home/macd/source",
+        "target": "/home/ubuntu/target"
+    },
+
+    "commands": [
+        "sudo apt-get update",
+        "sudo apt-get upgrade -y",
+        "sudo apt-get update",
+        "sudo apt-get install autoconf -y",
+        "sudo apt-get install automake -y",
+        "sudo apt-get install autotools-dev -y",
+        "sudo apt-get install curl -y",
+        "sudo apt-get install wget -y",
+        "sudo apt-get install python3 -y",
+        "sudo apt-get install emacs -y",
+        "sudo apt-get install git -y",
+        "sudo apt-get install libmpc-dev -y",
+        "sudo apt-get install libmpfr-dev -y",
+        "sudo apt-get install libgmp-dev -y",
+        "sudo apt-get install gawk -y",
+        "sudo apt-get install build-essential -y",
+        "sudo apt-get install bison -y",
+        "sudo apt-get install flex -y",
+        "sudo apt-get install texinfo -y",
+        "sudo apt-get install gperf -y",
+        "sudo apt-get install libtool -y",
+        "sudo apt-get install patchutils -y",
+        "sudo apt-get install pkg-config -y",
+        "sudo apt-get install glib2.0 -y",
+        "sudo apt-get install libpixman-1.dev -y",
+        "sudo apt-get install bc -y",
+        "sudo apt-get install zlib1g-dev -y",
+        "sudo apt-get install libexpat-dev -y",
+        "sudo add-apt-repository ppa:ubuntu-toolchain-r/test",
+        "sudo apt-get update",
+        "sudo apt-get install bridge-utils -y",
+        "sudo mkdir /opt/riscv",
+        "git clone --recursive https://github.com/riscv/riscv-gnu-toolchain",
+        "cd riscv-gnu-toolchain; ./configure --prefix=/opt/riscv --enable-multilib",
+        "cd riscv-gnu-toolchain; sudo make newlib -j4",
+        "cd riscv-gnu-toolchain; sudo make linux -j4",
+        "echo 'export PATH=$PATH:/opt/riscv/bin' >> .bashrc",
+        "echo 'export RISCV=/opt/riscv' >> .bashrc",
+        "wget https://download.qemu.org/qemu-4.2.0.tar.xz",
+        "tar xf qemu-4.2.0.tar.xz",
+        "cd qemu-4.2.0; ./configure --target-list='riscv32-softmmu,riscv32-linux-user,riscv64-softmmu,riscv64-linux-user'",
+        "cd qemu-4.2.0; make -j4",
+        "cd qemu-4.2.0; sudo make install",
+        "git clone --recursive https://github.com/michaeljclark/busybear-linux.git",
+        "cd busybear-linux; make -j8",
+        "wget https://kernel.org/pub/linux/kernel/v5.x/linux-5.5.5.tar.xz",
+        "tar xf linux-5.5.5.tar.xz",
+        "cp busybear-linux/conf/linux.config linux-5.5.5/.config",
+        "cd linux-5.5.5 ; make ARCH=riscv olddefconfig",
+        "cd linux-5.5.5 ; make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- vmlinux -j8",
+        "git clone https://github.com/riscv/riscv-pk.git",
+        "mkdir -p riscv-pk/build",
+        "cd riscv-pk/build ; ../configure --enable-logo --host=riscv64-unknown-elf --with-payload=../../linux-5.5.5/vmlinux ; make -j8",
+        "git clone https://github.com/riscv/riscv-isa-sim.git",
+        "mkdir -p riscv-isa-sim/build",
+        "cd riscv-isa-sim/build ; ../configure --prefix=$RISCV; make -j8; sudo make install"
+    ]
+}

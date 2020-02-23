@@ -53,6 +53,7 @@ An example of a minimal Kujenga recipe is the following:
             "us-east-1": "ami-a427efcc",
             "sa-east-1": "ami-fb8b22e6"
         },
+        "volume_size": 20,
         "uploads": {
             "doc-string": "Everthing in the source dir will be uploaded to target_directory",
             "source": "/home/ubuntu/source",
@@ -77,7 +78,7 @@ instance.  Note that it must be compatible with the ami that is
 specified in the **base_image** dictionary. If you specify an instance
 type that is not available in the specified region, you will get an
 incrutable error message from EC2 complaining about an unsupported
-configuration.
+configuration. **volume_size** specifies the size of the root volume.
 
 The **uploads** dictionary gives directions on files to upload.
 Everything in the source directory (full path) will be uploaded to the
