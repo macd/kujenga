@@ -245,6 +245,10 @@ class BuildContext:
         os.remove(self.key_filename)
         printdb("BuildContext teardown complete")
 
+# So this is used to set environment vars, etc, if the file envx exists.
+# That way we can manipulate the environment from the json recipe file
+# by creating, adding to, or deleting the file envx on the remote host
+SENV = "if [ -f envx ]; then \n source envx \n fi ;"
 
 class ConfigInstance:
     """Do the stuff to configure the instance before creating image"""
@@ -272,7 +276,7 @@ class ConfigInstance:
             try:
                 self.conn.sudo(cmd)
                 break
-            except:
+            except Exception as _e:
                 time.sleep(10)
 
     def upload_files(self, uploads):
@@ -291,19 +295,25 @@ class ConfigInstance:
         else:
             printdb("Info: no files to upload to instance")
 
+
     # We catch a failed command here to try to do as much as we can in
-    # one go (better for debugging the json recipe)
-    # note use sudo in the command, if needed
+    # one go (better for debugging the json recipe).  We used to use the
+    # "sudo" method of the Connection object, but there were some corner
+    # case problems.  By using the normal "run" method from the connection
+    # object we can then use "sudo" in the json recipe, if necessary. By
+    # doing this we can interleave normal commands and sudo commands,
+    # which is sometime necessary.
     def do_commands(self, commands):
         """Now perform all the commands from the json recipe"""
         for cmd in commands:
             try:
-                self.conn.run(cmd)
+                self.conn.run(SENV + cmd)
             except Exception as _e:
                 printdb(_e)
-                printdb("command '{}' failed. Skipping".format(cmd))
+                printdb("Command '{}' failed. Skipping\n\n".format(cmd))
 
-def create_image(config_file):
+
+def create_image(config_file, debug_build=False):
     """
     main method of kujenga. Takes single filename argument of the json
     formatted build recipe.  See recipes in recipe directory for examples
@@ -317,9 +327,10 @@ def create_image(config_file):
     bldx.wait_for_running()
     printdb("Configuring instance...")
     cfg = ConfigInstance(config_dict, bldx.ip_addr, bldx.key_filename)
-    bldx.create_image()
-    bldx.wait_for_image()
-    bldx.teardown()
+    if not debug_build:
+        bldx.create_image()
+        bldx.wait_for_image()
+        bldx.teardown()
 
     # we return these for debugging only
     return bldx, cfg

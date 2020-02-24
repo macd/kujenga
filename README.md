@@ -29,7 +29,7 @@ Kujenga requires
   - Fabric   (tested on 2.5.0)
 
 Using Amazon EC2 requires having an account there. Kujenga now leverages
-boto3's features to read your 'AWS_ACCESS_KEY_ID' and 'AWS_SECRET_ACCESS_KEY'
+boto3's features to read your **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY**
 from ~/.aws/credentials and region spec from ~/.aws/config
 
 
@@ -78,7 +78,8 @@ instance.  Note that it must be compatible with the ami that is
 specified in the **base_image** dictionary. If you specify an instance
 type that is not available in the specified region, you will get an
 incrutable error message from EC2 complaining about an unsupported
-configuration. **volume_size** specifies the size of the root volume.
+configuration. **volume_size** specifies the size of the root volume
+in gigabytes.
 
 The **uploads** dictionary gives directions on files to upload.
 Everything in the source directory (full path) will be uploaded to the
@@ -86,7 +87,16 @@ target directory (full path). These files can then be referred to in
 the commands section for installation of custom software etc.
 
 Every entry in the **commands** section will be executed verbatim by
-the sudo command.
+the run method of an object of fabric.connection.Connection. Note that
+each command is run from a separate process invocation, so that, for
+instance, you will need to 'cd' to the same directory if needed for
+multiple commands.
+
+By default (well mostly because of .bashrc's default), the run method does
+not source .bashrc.  In order to manipulate the environment from the
+json recipe, each command is prefaced by sourcing a file named **envx**
+on the remote host, if it exists. By changing this file with recipe 
+actions, you can control the environment on the remote host.
 
 Finally, Kujenga snapshots the instance to make a new ami and cleans up
 by shutting down the instance and deletes temporary keys and security groups

@@ -1,11 +1,11 @@
 {
-    "name": "riscv",
-    "description": "riscv toolchain",
+    "name": "riscv-ubuntu",
+    "description": "riscv toolchain, qemu, busybear, linux, and spike on Ubuntu 18.04",
     
     "region": "us-east-2",
 
     "user": "ubuntu",
-    "instance_type": "c4.xlarge",
+    "instance_type": "c4.2xlarge",
 
     "base_image": {
         "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
@@ -50,20 +50,21 @@
         "sudo apt-get install bc -y",
         "sudo apt-get install zlib1g-dev -y",
         "sudo apt-get install libexpat-dev -y",
-        "sudo add-apt-repository ppa:ubuntu-toolchain-r/test",
-        "sudo apt-get update",
+        "sudo apt-get install device-tree-compiler -y",
         "sudo apt-get install bridge-utils -y",
         "sudo mkdir /opt/riscv",
         "git clone --recursive https://github.com/riscv/riscv-gnu-toolchain",
         "cd riscv-gnu-toolchain; ./configure --prefix=/opt/riscv --enable-multilib",
-        "cd riscv-gnu-toolchain; sudo make newlib -j4",
-        "cd riscv-gnu-toolchain; sudo make linux -j4",
+        "cd riscv-gnu-toolchain; sudo make newlib -j8",
+        "cd riscv-gnu-toolchain; sudo make linux -j8",
         "echo 'export PATH=$PATH:/opt/riscv/bin' >> .bashrc",
+        "echo 'export PATH=$PATH:/opt/riscv/bin' >> envx",
         "echo 'export RISCV=/opt/riscv' >> .bashrc",
+        "echo 'export RISCV=/opt/riscv' >> envx",
         "wget https://download.qemu.org/qemu-4.2.0.tar.xz",
         "tar xf qemu-4.2.0.tar.xz",
         "cd qemu-4.2.0; ./configure --target-list='riscv32-softmmu,riscv32-linux-user,riscv64-softmmu,riscv64-linux-user'",
-        "cd qemu-4.2.0; make -j4",
+        "cd qemu-4.2.0; make -j8",
         "cd qemu-4.2.0; sudo make install",
         "git clone --recursive https://github.com/michaeljclark/busybear-linux.git",
         "cd busybear-linux; make -j8",
@@ -74,9 +75,10 @@
         "cd linux-5.5.5 ; make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- vmlinux -j8",
         "git clone https://github.com/riscv/riscv-pk.git",
         "mkdir -p riscv-pk/build",
-        "cd riscv-pk/build ; ../configure --enable-logo --host=riscv64-unknown-elf --with-payload=../../linux-5.5.5/vmlinux ; make -j8",
+        "cd riscv-pk/build ; ../configure --enable-logo --prefix=$RISCV --host=riscv64-unknown-elf --with-payload=../../linux-5.5.5/vmlinux ; make -j8; sudo make install",
         "git clone https://github.com/riscv/riscv-isa-sim.git",
         "mkdir -p riscv-isa-sim/build",
-        "cd riscv-isa-sim/build ; ../configure --prefix=$RISCV; make -j8; sudo make install"
+        "cd riscv-isa-sim/build ; ../configure --prefix=$RISCV; make -j8; sudo make install",
+        "echo 'export PATH=$PATH:/opt/riscv/riscv64-unknown-elf/bin' >> .bashrc"
     ]
 }
