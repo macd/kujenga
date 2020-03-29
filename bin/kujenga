@@ -4,8 +4,15 @@ import sys
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("Usage: kujenga <spec_file.json>")
         sys.exit(1)
     config_file = sys.argv[1]
-    sys.exit(kujenga.create_image(config_file))
+
+    # very low budget arg parsing
+    if len(sys.argv) > 2 and sys.argv[2] == "-d":
+        debug = True
+    else:
+        debug = False
+        
+    sys.exit(kujenga.create_image(config_file, debug))

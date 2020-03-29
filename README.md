@@ -18,12 +18,20 @@ Kujenga attempts to deal with the unpredictable delays and eventual
 consistancy issues of EC2.  It can be used in an automated stack or 
 as a command line tool.
 
+If passed the -d flag as the second argument, then an image is _not_
+created, the instance is left running, and the temporary key is not
+deleted. You can then use the temporary key to log into the running
+instance in order to debug any problems with the build recipe. Of
+course, you must remember to terminate the instance when done and
+delete the temporary key and temporary security group from EC2.
+
 Finally note that Kujenga may not work with EC2 classic (which is
 fairly old at this point) as it depends on having a default VPC within
 which to create the temporary security group.
 
 ## Example command line use
-kujenga recipe.json
+kujenga recipe.json 
+kujenga recipe.json -d
 
 ## Prerequisites
 Kujenga requires
