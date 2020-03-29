@@ -18,9 +18,12 @@ Kujenga attempts to deal with the unpredictable delays and eventual
 consistancy issues of EC2.  It can be used in an automated stack or 
 as a command line tool.
 
-Finally note that Kujenga may not work with EC2 classic as it depends
-on having a default VPC within which to create the temporary security
-group.
+Finally note that Kujenga may not work with EC2 classic (which is
+fairly old at this point) as it depends on having a default VPC within
+which to create the temporary security group.
+
+## Example command line use
+kujenga recipe.json
 
 ## Prerequisites
 Kujenga requires
@@ -30,11 +33,11 @@ Kujenga requires
 
 Using Amazon EC2 requires having an account there. Kujenga now leverages
 boto3's features to read your **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY**
-from ~/.aws/credentials and region spec from ~/.aws/config
+from ~/.aws/credentials and the region spec from ~/.aws/config
 
 
 ## Installation
-TODO:
+pip install kujenga
 
 ## Details
 

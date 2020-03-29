@@ -3,6 +3,8 @@
 
 """Kujenga: simple EC2 image creation from json recipies"""
 
+__all__ = ['create_image']
+
 import functools
 from glob import glob
 import json

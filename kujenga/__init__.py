@@ -1,1 +1,1 @@
-from kujenga import create_image
+from kujenga.kujenga import create_image

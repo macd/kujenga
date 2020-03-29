@@ -26,11 +26,11 @@
         "sudo apt-get upgrade -y",
         "sudo apt-get update",
         "sudo snap install ripgrep --classic",
-        "sudo apt-get install zip",
+        "sudo apt-get install zip -y",
         "curl -s 'https://git.sdkman.io' | bash",
         "echo 'source .sdkman/bin/sdkman-init.sh' >> envx",
         "sdk install java 14.0.0.j9-adpt",
-        "sdk install scala sbt",
+        "sdk install sbt",
         "sdk install scala 2.12.10",
         "rm envx",
         "sudo apt-get install autoconf -y",
@@ -81,6 +81,6 @@
         "cd rocket-chip; git submodule update --init",
         "git clone https://github.com/freechipsproject/rocket-tools",
         "cd rocket-tools; git submodule update --init --recursive",
-        "cd rocket-tools; sudo ./build.sh"
+        "cd rocket-tools; sudo -E ./build.sh"
     ]
 }
