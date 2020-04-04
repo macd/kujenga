@@ -30,8 +30,8 @@ fairly old at this point) as it depends on having a default VPC within
 which to create the temporary security group.
 
 ## Example command line use
-kujenga recipe.json 
-kujenga recipe.json -d
+    kujenga recipe.json 
+    kujenga recipe.json -d
 
 ## Prerequisites
 Kujenga requires
