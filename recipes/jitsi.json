@@ -1,0 +1,46 @@
+{
+    "name": "dbm-jitsi",
+    "description": "Desktop image in cloud for use with remote desktop",
+
+    "region": "us-west-1",
+
+    "user": "ubuntu",
+    
+    "instance_type": "c4.xlarge",
+
+    "base_image": {
+        "doc-string": "These are the U18.04 amd64 ebs images as of 17-Feb-2020",
+        "us-east-2": "ami-0367b500fdcac0edc",
+        "us-west-2": "ami-0d1cd67c26f5fca19"
+        "us-west-1": "ami-0777d8c544fb25aec"
+    },
+
+    "volume_size": 40,
+    
+    "uploads": {
+        "doc-string": "Everthing in the source dir will be uploaded to target_directory",
+        "source": "/home/macd/source",
+        "target": "/home/ubuntu/target"
+    },
+
+    "commands": [
+        "sudo su; echo 'deb https://download.jitsi.org stable/' >> /etc/apt/sources.list.d/jitsi-stable.list",
+        "sudo su; wget -qO - https://download.jitsi.org/jitsi-key.gpg.key | apt-key add",
+        "sudo apt-get update",
+        "sudo su; echo DefaultLimitNOFILE=65000 >> /etc/systemd/system.conf",
+        "sudo su; echo DefaultLimitNPROC=65000 >> /etc/systemd/system.conf",
+        "sudo su; echo DefaultTasksMax=65000 >> /etc/systemd/system.conf",
+        "sudo systemctl daemon-reload",
+        "sudo apt-get install jitsi-meet -y",
+         #### crap have to give jitsi-meet the url interactively ####
+        "sudo /usr/share/jitsi-meet/scripts/install-letsencrypt-cert.sh"
+        
+    ]
+}
+
+# Since this is never going to work as a json file for kujenga, I'm adding some notes here
+# I used godaddy to set up the DNS entry for anseri.com to point to a EC2 elastic IP address. 
+# The EC2 instance needs to have that  elastic IP attached to it.  I used godaddy to set up the
+# DNS entry to point to that specific elastic IP, so if that changes, the DNS entry at godaddy
+# needs to change as well
+

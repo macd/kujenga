@@ -226,7 +226,7 @@ class BuildContext:
         printdb("Image state: {}".format(state))
         return state == "available"
 
-    @timeout(1800, 'Wating for image completion timed out')
+    @timeout(3600, 'Image completion timed out. Teardown skipped. Remember to manually clean up!')
     def wait_for_image(self):
         """Have to wait for image to complete before cleaning up"""
         while True:
